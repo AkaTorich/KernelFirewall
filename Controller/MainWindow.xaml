@@ -1,0 +1,482 @@
+<Window x:Class="FirewallController.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:FirewallController.ViewModels"
+        xmlns:models="clr-namespace:FirewallController.Models"
+        Title="Kernel Firewall Controller"
+        WindowState="Maximized"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterScreen"
+        Background="{StaticResource BackgroundDarkBrush}"
+        Foreground="{StaticResource TextPrimaryBrush}"
+        FontFamily="{StaticResource MainFont}">
+
+    <Window.DataContext>
+        <vm:MainViewModel/>
+    </Window.DataContext>
+
+    <Window.InputBindings>
+        <KeyBinding Key="S" Modifiers="Control" Command="{Binding SaveSessionCommand}"/>
+        <KeyBinding Key="O" Modifiers="Control" Command="{Binding LoadSessionCommand}"/>
+    </Window.InputBindings>
+
+    <Grid>
+        <!-- Background Pattern -->
+        <Grid.Background>
+            <DrawingBrush TileMode="Tile" Viewport="0,0,60,60" ViewportUnits="Absolute">
+                <DrawingBrush.Drawing>
+                    <GeometryDrawing>
+                        <GeometryDrawing.Geometry>
+                            <GeometryGroup>
+                                <LineGeometry StartPoint="0,0" EndPoint="60,0"/>
+                                <LineGeometry StartPoint="0,0" EndPoint="0,60"/>
+                            </GeometryGroup>
+                        </GeometryDrawing.Geometry>
+                        <GeometryDrawing.Pen>
+                            <Pen Brush="#08FFFFFF" Thickness="1"/>
+                        </GeometryDrawing.Pen>
+                    </GeometryDrawing>
+                </DrawingBrush.Drawing>
+            </DrawingBrush>
+        </Grid.Background>
+
+        <Grid Margin="20">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- Menu -->
+            <Menu Grid.Row="0" Background="Transparent" Margin="0,0,0,10">
+                <MenuItem Header="📁 Файл" Foreground="{StaticResource TextPrimaryBrush}" FontSize="13" FontWeight="SemiBold">
+                    <MenuItem Header="💾 Сохранить сессию"
+                              Command="{Binding SaveSessionCommand}"
+                              Foreground="{StaticResource TextPrimaryBrush}"
+                              Background="{StaticResource BackgroundLightBrush}"/>
+                    <MenuItem Header="📂 Загрузить сессию"
+                              Command="{Binding LoadSessionCommand}"
+                              Foreground="{StaticResource TextPrimaryBrush}"
+                              Background="{StaticResource BackgroundLightBrush}"/>
+                    <Separator Background="{StaticResource BorderBrush}"/>
+                    <MenuItem Header="🚪 Выход"
+                              Click="Exit_Click"
+                              Foreground="{StaticResource AccentRedBrush}"
+                              Background="{StaticResource BackgroundLightBrush}"/>
+                </MenuItem>
+            </Menu>
+
+            <!-- Header -->
+            <Border Grid.Row="1" Style="{StaticResource CardBorder}" Margin="0,0,0,20">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Title and Status -->
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                        <TextBlock Text="🔥 KERNEL FIREWALL" 
+                                   FontSize="28" 
+                                   FontWeight="Bold"
+                                   Foreground="{StaticResource AccentCyanBrush}">
+                            <TextBlock.Effect>
+                                <DropShadowEffect Color="#00FFFF" BlurRadius="15" ShadowDepth="0" Opacity="0.5"/>
+                            </TextBlock.Effect>
+                        </TextBlock>
+                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                            <TextBlock Text="{Binding StatusText}" 
+                                       FontSize="14" 
+                                       Foreground="{StaticResource TextSecondaryBrush}"/>
+                            <Ellipse Width="10" Height="10" Margin="12,0,0,0" VerticalAlignment="Center">
+                                <Ellipse.Style>
+                                    <Style TargetType="Ellipse">
+                                        <Setter Property="Fill" Value="{StaticResource AccentRedBrush}"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsConnected}" Value="True">
+                                                <Setter Property="Fill" Value="{StaticResource AccentGreenBrush}"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Ellipse.Style>
+                                <Ellipse.Effect>
+                                    <DropShadowEffect Color="#00FF00"
+                                                      BlurRadius="10" ShadowDepth="0" Opacity="0.8"/>
+                                </Ellipse.Effect>
+                            </Ellipse>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- Stats -->
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="0,0,40,0">
+                        <Border Background="#20FF3366" CornerRadius="8" Padding="16,8" Margin="0,0,12,0">
+                            <StackPanel>
+                                <TextBlock Text="ЗАБЛОКИРОВАНО" FontSize="10" Foreground="{StaticResource AccentRedBrush}" FontWeight="SemiBold"/>
+                                <TextBlock Text="{Binding PacketsBlocked, StringFormat={}{0:N0}}" 
+                                           FontSize="24" FontWeight="Bold" FontFamily="{StaticResource MonoFont}"
+                                           Foreground="{StaticResource AccentRedBrush}"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Background="#2000FF88" CornerRadius="8" Padding="16,8">
+                            <StackPanel>
+                                <TextBlock Text="РАЗРЕШЕНО" FontSize="10" Foreground="{StaticResource AccentGreenBrush}" FontWeight="SemiBold"/>
+                                <TextBlock Text="{Binding PacketsAllowed, StringFormat={}{0:N0}}" 
+                                           FontSize="24" FontWeight="Bold" FontFamily="{StaticResource MonoFont}"
+                                           Foreground="{StaticResource AccentGreenBrush}"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- Firewall Toggle -->
+                    <StackPanel Grid.Column="2" VerticalAlignment="Center" Margin="0,0,20,0">
+                        <TextBlock Text="ФАЕРВОЛ" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" 
+                                   HorizontalAlignment="Center" Margin="0,0,0,6"/>
+                        <ToggleButton Style="{StaticResource NeonSwitch}" 
+                                      IsChecked="{Binding IsFirewallEnabled}"
+                                      Command="{Binding ToggleFirewallCommand}"/>
+                    </StackPanel>
+
+                    <!-- Monitor Button -->
+                    <Button Grid.Column="3" 
+                            Content="🔍 МОНИТОР" 
+                            Style="{StaticResource NeonButton}"
+                            Margin="0,0,10,0"
+                            Click="OpenMonitor_Click"/>
+
+                    <!-- Log Button -->
+                    <Button Grid.Column="4" 
+                            Content="📋 ЛОГ" 
+                            Style="{StaticResource NeonButton}"
+                            Margin="0,0,10,0"
+                            Click="OpenLog_Click"/>
+
+                    <!-- Connect Button -->
+                    <Button Grid.Column="5" 
+                            Content="⟳" 
+                            Style="{StaticResource NeonButton}"
+                            ToolTip="Переподключить"
+                            Command="{Binding ConnectToDriverCommand}"/>
+                </Grid>
+            </Border>
+
+            <!-- Main Content -->
+            <Grid Grid.Row="2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Running Processes Panel -->
+                <Border Grid.Column="0" Style="{StaticResource CardBorder}" Margin="0,0,10,0">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Text="📋 ЗАПУЩЕННЫЕ ПРОЦЕССЫ" 
+                                   FontSize="14" FontWeight="SemiBold" 
+                                   Foreground="{StaticResource AccentMagentaBrush}" 
+                                   Margin="0,0,0,12"/>
+
+                        <StackPanel Grid.Row="1" Margin="0,0,0,12">
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                <Button Content="⟳" Style="{StaticResource NeonButton}" Padding="10,8"
+                                        Command="{Binding RefreshProcessesCommand}" ToolTip="Обновить"/>
+                                <Button Content="☑" Style="{StaticResource NeonButton}" Padding="10,8" Margin="6,0,0,0"
+                                        Command="{Binding SelectAllProcessesCommand}" ToolTip="Выбрать все"/>
+                                <Button Content="☐" Style="{StaticResource NeonButton}" Padding="10,8" Margin="6,0,0,0"
+                                        Command="{Binding DeselectAllProcessesCommand}" ToolTip="Снять выбор"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <CheckBox Style="{StaticResource NeonCheckBox}" 
+                                          Content="Системные" FontSize="11"
+                                          IsChecked="{Binding ShowSystemProcesses}"
+                                          ToolTip="Показать процессы из System32"/>
+                                <CheckBox Style="{StaticResource NeonCheckBox}" 
+                                          Content="Все экземпляры" FontSize="11" Margin="16,0,0,0"
+                                          IsChecked="{Binding ShowAllInstances}"
+                                          ToolTip="Показать все копии одного приложения"/>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <ListBox Grid.Row="2" 
+                                 Style="{StaticResource NeonListBox}"
+                                 ItemsSource="{Binding RunningProcesses}"
+                                 SelectedItem="{Binding SelectedProcess}"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <CheckBox Grid.Column="0"
+                                                  Style="{StaticResource NeonCheckBox}"
+                                                  IsChecked="{Binding IsSelected}"
+                                                  IsEnabled="{Binding CanBeBlocked}"
+                                                  Margin="0,0,10,0"/>
+
+                                        <StackPanel Grid.Column="1">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="{Binding ProcessName}"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="{StaticResource TextPrimaryBrush}"/>
+                                                <TextBlock Text=" [блок по PID]"
+                                                           FontSize="10"
+                                                           FontStyle="Italic"
+                                                           Foreground="{StaticResource AccentOrangeBrush}"
+                                                           Margin="6,0,0,0"
+                                                           Visibility="{Binding IsPidBased, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                                            </StackPanel>
+                                            <TextBlock Text="{Binding ExecutablePath}"
+                                                       FontSize="10"
+                                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                        </StackPanel>
+
+                                        <Border Grid.Column="2" Visibility="{Binding IsBlocked, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                Background="#30FF3366" CornerRadius="4" Padding="6,2">
+                                            <TextBlock Text="BLOCKED" FontSize="9" FontWeight="Bold" 
+                                                       Foreground="{StaticResource AccentRedBrush}"/>
+                                        </Border>
+                                    </Grid>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                            <ListBox.ItemContainerStyle>
+                                <Style TargetType="ListBoxItem" BasedOn="{StaticResource NeonListBoxItem}"/>
+                            </ListBox.ItemContainerStyle>
+                        </ListBox>
+
+                        <StackPanel Grid.Row="3" Margin="0,12,0,0">
+                            <Button Content="🚫 ЗАБЛОКИРОВАТЬ ВЫБРАННЫЙ" 
+                                    Style="{StaticResource DangerButton}"
+                                    Command="{Binding BlockSelectedProcessCommand}"
+                                    Margin="0,0,0,8"/>
+                            <Button Content="🚫 ЗАБЛОКИРОВАТЬ ОТМЕЧЕННЫЕ" 
+                                    Style="{StaticResource DangerButton}"
+                                    Command="{Binding BlockSelectedProcessesCommand}"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- Blocked Apps Panel -->
+                <Border Grid.Column="1" Style="{StaticResource CardBorder}" Margin="10,0,10,0">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Text="🔒 ЗАБЛОКИРОВАННЫЕ ПРИЛОЖЕНИЯ" 
+                                   FontSize="14" FontWeight="SemiBold" 
+                                   Foreground="{StaticResource AccentRedBrush}" 
+                                   Margin="0,0,0,12"/>
+
+                        <ListBox Grid.Row="1" 
+                                 Style="{StaticResource NeonListBox}"
+                                 ItemsSource="{Binding BlockedApps}"
+                                 SelectedItem="{Binding SelectedBlockedApp}"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding ApplicationName}" 
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{StaticResource AccentRedBrush}"/>
+                                        <TextBlock Text="{Binding ApplicationPath}" 
+                                                   FontSize="10"
+                                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                                   TextTrimming="CharacterEllipsis"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                            <ListBox.ItemContainerStyle>
+                                <Style TargetType="ListBoxItem" BasedOn="{StaticResource NeonListBoxItem}"/>
+                            </ListBox.ItemContainerStyle>
+                        </ListBox>
+
+                        <StackPanel Grid.Row="2" Margin="0,12,0,0">
+                            <Button Content="✅ РАЗБЛОКИРОВАТЬ ВЫБРАННЫЙ" 
+                                    Style="{StaticResource SuccessButton}"
+                                    Command="{Binding UnblockSelectedAppCommand}"
+                                    Margin="0,0,0,8"/>
+                            <Button Content="✅ РАЗБЛОКИРОВАТЬ ВСЕ" 
+                                    Style="{StaticResource SuccessButton}"
+                                    Command="{Binding UnblockAllAppsCommand}"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- Rules Panel -->
+                <Border Grid.Column="2" Style="{StaticResource CardBorder}" Margin="10,0,0,0">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Text="⚙️ ПРАВИЛА ФИЛЬТРАЦИИ" 
+                                   FontSize="14" FontWeight="SemiBold" 
+                                   Foreground="{StaticResource AccentOrangeBrush}" 
+                                   Margin="0,0,0,12"/>
+
+                        <!-- New Rule Form -->
+                        <Border Grid.Row="1" Background="{StaticResource BackgroundLightBrush}" 
+                                CornerRadius="8" Padding="12" Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock Text="НОВОЕ ПРАВИЛО" FontSize="11" FontWeight="SemiBold" 
+                                           Foreground="{StaticResource AccentCyanBrush}" Margin="0,0,0,8"/>
+
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox Grid.Column="0" Style="{StaticResource NeonTextBox}" 
+                                             Text="{Binding NewRulePath, UpdateSourceTrigger=PropertyChanged}"
+                                             Padding="8,6"/>
+                                    <Button Grid.Column="1" Content="←" Style="{StaticResource NeonButton}"
+                                            Padding="8,4" Margin="6,0,0,0"
+                                            Command="{Binding UseSelectedProcessPathCommand}"
+                                            ToolTip="Использовать путь выбранного процесса"/>
+                                </Grid>
+
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" Margin="0,0,4,0">
+                                        <TextBlock Text="Порты (80, 443, 8000-9000)" FontSize="10" 
+                                                   Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                                        <TextBox Style="{StaticResource NeonTextBox}" 
+                                                 Text="{Binding NewRulePorts, UpdateSourceTrigger=PropertyChanged}"
+                                                 Padding="8,6"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Margin="4,0,0,0">
+                                        <TextBlock Text="IP адреса (1.1.1.1, 8.8.8.0/24, 2001:db8::/32)" FontSize="10"
+                                                   Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                                        <TextBox Style="{StaticResource NeonTextBox}"
+                                                 Text="{Binding NewRuleIps, UpdateSourceTrigger=PropertyChanged}"
+                                                 Padding="8,6"
+                                                 ToolTip="Примеры:&#x0a;IPv4: 192.168.1.0/24, 10.0.0.0/8&#x0a;IPv6: 2001:db8::/32, fe80::/10, ::1/128"/>
+                                    </StackPanel>
+                                </Grid>
+
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" Orientation="Horizontal">
+                                        <RadioButton Content="Блок" Foreground="{StaticResource AccentRedBrush}"
+                                                     IsChecked="True" GroupName="Action" Margin="0,0,12,0"
+                                                     Checked="BlockAction_Checked"/>
+                                        <RadioButton Content="Разрешить" Foreground="{StaticResource AccentGreenBrush}"
+                                                     GroupName="Action" Margin="0,0,12,0"
+                                                     Checked="AllowAction_Checked"/>
+                                        <RadioButton Content="Ограничить" Foreground="{StaticResource AccentOrangeBrush}"
+                                                     GroupName="Action"
+                                                     Checked="RestrictAction_Checked"/>
+                                    </StackPanel>
+                                    <ComboBox Grid.Column="1"
+                                              SelectedItem="{Binding NewRuleDirection}"
+                                              Margin="119,-174,0,174"
+                                              Padding="8,4"
+                                              MinWidth="150" Grid.ColumnSpan="2">
+                                        <models:TrafficDirection>Output</models:TrafficDirection>
+                                        <models:TrafficDirection>Input</models:TrafficDirection>
+                                        <models:TrafficDirection>Any</models:TrafficDirection>
+                                    </ComboBox>
+                                    <Button Grid.Column="2" Content="+ ДОБАВИТЬ"
+                                            Style="{StaticResource SuccessButton}"
+                                            Padding="12,6"
+                                            Command="{Binding AddRuleCommand}"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Rules List -->
+                        <ListBox Grid.Row="2" 
+                                 Style="{StaticResource NeonListBox}"
+                                 ItemsSource="{Binding Rules}"
+                                 SelectedItem="{Binding SelectedRule}"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <TextBlock Grid.Row="0" Grid.Column="0"
+                                                   Text="{Binding ApplicationName}" 
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{StaticResource TextPrimaryBrush}"/>
+                                        <TextBlock Grid.Row="0" Grid.Column="1"
+                                                   Text="{Binding ActionDisplay}" 
+                                                   FontWeight="SemiBold"/>
+
+                                        <TextBlock Grid.Row="1" Grid.ColumnSpan="2"
+                                                   Text="{Binding ApplicationPath}" 
+                                                   FontSize="10"
+                                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                                   TextTrimming="CharacterEllipsis"/>
+
+                                        <StackPanel Grid.Row="2" Grid.ColumnSpan="2"
+                                                    Orientation="Horizontal" Margin="0,4,0,0">
+                                            <TextBlock Text="Порты: " FontSize="10" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                            <TextBlock Text="{Binding PortsDisplay}" FontSize="10"
+                                                       Foreground="{StaticResource AccentCyanBrush}"/>
+                                            <TextBlock Text=" | IP: " FontSize="10" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                            <TextBlock Text="{Binding IpsDisplay}" FontSize="10"
+                                                       Foreground="{StaticResource AccentCyanBrush}"/>
+                                            <TextBlock Text=" | Направление: " FontSize="10" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                            <TextBlock Text="{Binding DirectionDisplay}" FontSize="10"
+                                                       Foreground="{StaticResource AccentOrangeBrush}"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                            <ListBox.ItemContainerStyle>
+                                <Style TargetType="ListBoxItem" BasedOn="{StaticResource NeonListBoxItem}"/>
+                            </ListBox.ItemContainerStyle>
+                        </ListBox>
+
+                        <StackPanel Grid.Row="3" Margin="0,12,0,0">
+                            <Button Content="🗑️ УДАЛИТЬ ВЫБРАННОЕ" 
+                                    Style="{StaticResource DangerButton}"
+                                    Command="{Binding RemoveSelectedRuleCommand}"
+                                    Margin="0,0,0,8"/>
+                            <Button Content="🗑️ ОЧИСТИТЬ ВСЕ ПРАВИЛА" 
+                                    Style="{StaticResource DangerButton}"
+                                    Command="{Binding ClearAllRulesCommand}"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Grid>
+    </Grid>
+</Window>
+
