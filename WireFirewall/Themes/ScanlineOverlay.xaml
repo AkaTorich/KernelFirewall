@@ -1,0 +1,34 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- CRT Scanline Effect Brush -->
+    <DrawingBrush x:Key="ScanlineBrush"
+                  TileMode="Tile"
+                  Viewport="0,0,1,3"
+                  ViewportUnits="Absolute"
+                  Stretch="None">
+        <DrawingBrush.Drawing>
+            <GeometryDrawing>
+                <GeometryDrawing.Geometry>
+                    <RectangleGeometry Rect="0,0,1,1"/>
+                </GeometryDrawing.Geometry>
+                <GeometryDrawing.Brush>
+                    <SolidColorBrush Color="#18000000"/>
+                </GeometryDrawing.Brush>
+            </GeometryDrawing>
+        </DrawingBrush.Drawing>
+    </DrawingBrush>
+
+    <!-- CRT Vignette Effect -->
+    <RadialGradientBrush x:Key="VignetteBrush"
+                         GradientOrigin="0.5,0.5"
+                         Center="0.5,0.5"
+                         RadiusX="0.7"
+                         RadiusY="0.7">
+        <GradientStop Color="#00000000" Offset="0.0"/>
+        <GradientStop Color="#00000000" Offset="0.6"/>
+        <GradientStop Color="#40000000" Offset="0.85"/>
+        <GradientStop Color="#80000000" Offset="1.0"/>
+    </RadialGradientBrush>
+
+</ResourceDictionary>

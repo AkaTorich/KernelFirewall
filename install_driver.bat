@@ -4,15 +4,6 @@ echo  Kernel Firewall Driver Installer
 echo ============================================
 echo.
 
-:: Check for admin rights
-net session >nul 2>&1
-if %errorLevel% neq 0 (
-    echo [ERROR] This script requires Administrator privileges!
-    echo Right-click and select "Run as administrator"
-    pause
-    exit /b 1
-)
-
 set DRIVER_NAME=KernelFirewall
 set DRIVER_PATH=%~dp0bin\Release\x64\KernelFirewall.sys
 
@@ -36,7 +27,12 @@ sc delete %DRIVER_NAME% >nul 2>&1
 timeout /t 1 >nul
 
 echo [*] Copying driver to System32\drivers...
-copy /Y "%DRIVER_PATH%" "%SystemRoot%\System32\drivers\%DRIVER_NAME%.sys" >nul
+:: Use native System32 path to avoid WOW64 redirection
+if defined PROCESSOR_ARCHITEW6432 (
+    copy /Y "%DRIVER_PATH%" "%SystemRoot%\Sysnative\drivers\%DRIVER_NAME%.sys" >nul
+) else (
+    copy /Y "%DRIVER_PATH%" "%SystemRoot%\System32\drivers\%DRIVER_NAME%.sys" >nul
+)
 
 echo [*] Creating service...
 sc create %DRIVER_NAME% type=kernel binPath="%SystemRoot%\System32\drivers\%DRIVER_NAME%.sys" start=demand error=normal

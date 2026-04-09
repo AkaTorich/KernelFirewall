@@ -107,6 +107,60 @@ volatile LONG64 g_PacketsBlocked = 0;
 volatile LONG64 g_PacketsAllowed = 0;
 volatile BOOLEAN g_MonitoringEnabled = TRUE;
 
+// Debug log ring buffer
+KSPIN_LOCK g_LogLock;
+CHAR g_DebugLog[DRIVER_LOG_SIZE];
+volatile ULONG g_LogOffset = 0;
+
+static void KfwLog(const char* fmt, ...)
+{
+    CHAR buf[256];
+    va_list args;
+    va_start(args, fmt);
+    int len = _vsnprintf(buf, sizeof(buf) - 2, fmt, args);
+    va_end(args);
+    if (len <= 0) return;
+    buf[len] = '\n';
+    buf[len + 1] = '\0';
+    len++;
+
+    DbgPrint("KFW: %s", buf);
+
+    KIRQL irql;
+    KeAcquireSpinLock(&g_LogLock, &irql);
+    for (int i = 0; i < len && g_LogOffset < DRIVER_LOG_SIZE - 1; i++) {
+        g_DebugLog[g_LogOffset++] = buf[i];
+    }
+    KeReleaseSpinLock(&g_LogLock, irql);
+}
+
+// Per-process statistics
+KSPIN_LOCK g_StatsLock;
+PROCESS_STATS_ENTRY g_ProcessStats[MAX_PROCESS_STATS];
+volatile ULONG g_ProcessStatsCount = 0;
+
+// Find or create stats entry for a process (must be called at DISPATCH_LEVEL with g_StatsLock held)
+static PPROCESS_STATS_ENTRY FindOrCreateProcessStats(const CHAR* processName)
+{
+    ULONG i;
+    // Search existing
+    for (i = 0; i < g_ProcessStatsCount; i++) {
+        if (_strnicmp(g_ProcessStats[i].ProcessName, processName, 63) == 0) {
+            return &g_ProcessStats[i];
+        }
+    }
+    // Create new if space available
+    if (g_ProcessStatsCount < MAX_PROCESS_STATS) {
+        PPROCESS_STATS_ENTRY entry = &g_ProcessStats[g_ProcessStatsCount];
+        RtlZeroMemory(entry, sizeof(PROCESS_STATS_ENTRY));
+        RtlCopyMemory(entry->ProcessName, processName, min(strlen(processName), 63));
+        entry->ProcessName[63] = '\0';
+        g_ProcessStatsCount++;
+        return entry;
+    }
+    return NULL; // Table full
+}
+
 // Connection cache for Stream/Datagram layers
 #define MAX_CONN_CACHE 128
 typedef struct _CONN_CACHE_ENTRY {
@@ -658,7 +712,7 @@ BOOLEAN CheckWildcardRules(USHORT AddressFamily,
     for (i = 0; i < g_RuleCount; i++) {
         if (!g_Rules[i].IsActive) continue;
         if (g_Rules[i].ProcessId != 0) continue;  // Not a wildcard rule
-        if (g_Rules[i].ApplicationPath[0] != L'\0') continue;  // Not a wildcard rule
+        if (g_Rules[i].ApplicationPath[0] != L'\0' && g_Rules[i].ApplicationPath[0] != L'*') continue;  // Not a wildcard rule
 
         // Check if rule direction matches packet direction
         if (g_Rules[i].Direction == TrafficDirectionInput && PacketDirection != 1) {
@@ -1139,43 +1193,109 @@ VOID NTAPI AleClassifyFn(
     }
 
     if (g_IsFilteringEnabled) {
-        // Check blocking by PID first (more specific)
-        if (IsAppBlockedByPid(processId)) {
+        // Check blocked apps list first
+        BOOLEAN appBlocked = IsAppBlockedByPid(processId) || IsAppBlockedByName(processName);
+
+        // Single pass through ALL rules in order - first matching rule wins
+        // ALLOW rules can override app blocking
+        KIRQL ruleIrql;
+        KeAcquireSpinLock(&g_RulesLock, &ruleIrql);
+
+        BOOLEAN ruleMatched = FALSE;
+        ULONG ri, rj;
+        for (ri = 0; ri < g_RuleCount && !ruleMatched; ri++) {
+            if (!g_Rules[ri].IsActive) continue;
+
+            // Check if rule matches this process (by PID, name, or wildcard)
+            BOOLEAN processMatch = FALSE;
+            if (g_Rules[ri].ApplicationPath[0] == L'\0' || g_Rules[ri].ApplicationPath[0] == L'*') {
+                processMatch = TRUE;  // Wildcard rule - matches all
+            } else if (g_Rules[ri].ProcessId != 0 && g_Rules[ri].ProcessId == processId) {
+                processMatch = TRUE;  // PID match
+            } else {
+                // Name match - extract name from rule path
+                WCHAR ruleName[64] = { 0 };
+                const WCHAR* lastSlash = wcsrchr(g_Rules[ri].ApplicationPath, L'\\');
+                const WCHAR* fileName = lastSlash ? lastSlash + 1 : g_Rules[ri].ApplicationPath;
+                wcsncpy(ruleName, fileName, 63);
+                // Remove .exe extension for comparison
+                WCHAR* dot = wcsrchr(ruleName, L'.');
+                if (dot) *dot = L'\0';
+
+                // Convert process name to wide for comparison
+                WCHAR procNameW[64] = { 0 };
+                for (int ci = 0; ci < 63 && processName[ci]; ci++)
+                    procNameW[ci] = (WCHAR)processName[ci];
+
+                if (_wcsnicmp(ruleName, procNameW, 63) == 0)
+                    processMatch = TRUE;
+            }
+
+            if (!processMatch) continue;
+
+            // Check direction
+            if (g_Rules[ri].Direction == TrafficDirectionInput && direction != 1) continue;
+            if (g_Rules[ri].Direction == TrafficDirectionOutput && direction != 0) continue;
+
+            // Determine target IP/port based on direction
+            ULONG targetIpV4;
+            PUCHAR targetIpV6;
+            USHORT targetPort;
+            if (g_Rules[ri].Direction == TrafficDirectionInput) {
+                targetIpV4 = remoteIpV4; targetIpV6 = remoteIpV6; targetPort = localPort;
+            } else {
+                targetIpV4 = remoteIpV4; targetIpV6 = remoteIpV6; targetPort = remotePort;
+            }
+
+            // Check port filter
+            BOOLEAN portOk = (g_Rules[ri].PortRangeCount == 0);
+            for (rj = 0; rj < g_Rules[ri].PortRangeCount; rj++) {
+                if (targetPort >= g_Rules[ri].PortRanges[rj].StartPort &&
+                    targetPort <= g_Rules[ri].PortRanges[rj].EndPort) {
+                    portOk = TRUE; break;
+                }
+            }
+
+            // Check IP filter
+            BOOLEAN ipOk = (g_Rules[ri].IpAddressCount == 0);
+            for (rj = 0; rj < g_Rules[ri].IpAddressCount; rj++) {
+                if (g_Rules[ri].IpAddresses[rj].AddressFamily != addressFamily) continue;
+                if (addressFamily == ADDRESS_FAMILY_IPV4) {
+                    ULONG maskedT = targetIpV4 & g_Rules[ri].IpAddresses[rj].V4.Mask;
+                    ULONG maskedR = g_Rules[ri].IpAddresses[rj].V4.Address & g_Rules[ri].IpAddresses[rj].V4.Mask;
+                    if (maskedT == maskedR) { ipOk = TRUE; break; }
+                } else if (addressFamily == ADDRESS_FAMILY_IPV6 && targetIpV6 != NULL) {
+                    if (MatchIPv6Prefix(targetIpV6, g_Rules[ri].IpAddresses[rj].V6.Address,
+                                       g_Rules[ri].IpAddresses[rj].V6.PrefixLength)) { ipOk = TRUE; break; }
+                }
+            }
+
+            // Apply action - first matching rule wins
+            switch (g_Rules[ri].Action) {
+                case FirewallActionBlock:
+                    if (portOk && ipOk) {
+                        shouldBlock = TRUE; ruleMatched = TRUE;
+                        KfwLog("ALE BLOCK rule#%u proc=%s port=%u", ri, processName, remotePort);
+                    }
+                    break;
+                case FirewallActionAllow:
+                    if (portOk && ipOk) {
+                        shouldBlock = FALSE; ruleMatched = TRUE;
+                        KfwLog("ALE ALLOW rule#%u proc=%s port=%u", ri, processName, remotePort);
+                    }
+                    break;
+                case FirewallActionAllowRestricted:
+                    if (portOk && ipOk) { shouldBlock = FALSE; ruleMatched = TRUE; }
+                    else { shouldBlock = TRUE; ruleMatched = TRUE; }
+                    break;
+            }
+        }
+        KeReleaseSpinLock(&g_RulesLock, ruleIrql);
+
+        // If no rule matched, fall back to app block list
+        if (!ruleMatched && appBlocked) {
             shouldBlock = TRUE;
-        }
-        // Check by process name (independent check)
-        if (IsAppBlockedByName(processName)) {
-            shouldBlock = TRUE;
-        }
-        // For IPv4: check IP-based rules (always check, not else-if)
-        if (addressFamily == ADDRESS_FAMILY_IPV4) {
-            // Check rules by PID
-            if (!CheckRuleMatchByPid(processId, addressFamily, localIpV4, NULL, localPort, remoteIpV4, NULL, remotePort, direction)) {
-                shouldBlock = TRUE;
-            }
-            // Check rules by name
-            if (!CheckRuleMatchByName(processName, addressFamily, localIpV4, NULL, localPort, remoteIpV4, NULL, remotePort, direction)) {
-                shouldBlock = TRUE;
-            }
-            // Always check wildcard rules (applies to all processes)
-            if (!CheckWildcardRules(addressFamily, localIpV4, NULL, localPort, remoteIpV4, NULL, remotePort, direction)) {
-                shouldBlock = TRUE;
-            }
-        }
-        // For IPv6: check IP-based rules (always check, not else-if)
-        else if (addressFamily == ADDRESS_FAMILY_IPV6) {
-            // Check rules by PID
-            if (!CheckRuleMatchByPid(processId, addressFamily, 0, localIpV6, localPort, 0, remoteIpV6, remotePort, direction)) {
-                shouldBlock = TRUE;
-            }
-            // Check rules by name
-            if (!CheckRuleMatchByName(processName, addressFamily, 0, localIpV6, localPort, 0, remoteIpV6, remotePort, direction)) {
-                shouldBlock = TRUE;
-            }
-            // Always check wildcard rules (applies to all processes)
-            if (!CheckWildcardRules(addressFamily, 0, localIpV6, localPort, 0, remoteIpV6, remotePort, direction)) {
-                shouldBlock = TRUE;
-            }
+            KfwLog("ALE NORULE appBlocked proc=%s port=%u", processName, remotePort);
         }
     }
 
@@ -1365,10 +1485,16 @@ VOID NTAPI DataClassifyFn(
         }
     }
 
-    // Lookup cache for process info and block status (unified for IPv4 and IPv6)
-    BOOLEAN found = LookupConnCacheUnified(addressFamily, localIpV4, localIpV6, localPort,
-                                           remoteIpV4, remoteIpV6, remotePort, &processId, processName, &shouldBlock);
-    
+    // Lookup cache for process info ONLY (not block decision)
+    {
+        BOOLEAN cachedBlock = FALSE;
+        BOOLEAN found = LookupConnCacheUnified(addressFamily, localIpV4, localIpV6, localPort,
+                                               remoteIpV4, remoteIpV6, remotePort, &processId, processName, &cachedBlock);
+        // Ignore cachedBlock - we always re-evaluate rules below
+        (void)cachedBlock;
+        (void)found;
+    }
+
     // Fallback process info
     if (processId == 0 && (inMetaValues->currentMetadataValues & FWPS_METADATA_FIELD_PROCESS_ID)) {
         processId = (ULONG)(ULONG_PTR)inMetaValues->processId;
@@ -1379,54 +1505,110 @@ VOID NTAPI DataClassifyFn(
         processName[6] = '\0';
     }
 
-    // Fallback: if not found in cache, check blocking rules directly
-    // This handles race conditions where Stream/Datagram packet arrives before ALE populates cache
-    if (!found) {
-        // If processId available, get process name
-        if (processId != 0) {
-            if (processName[0] == 'S' && processName[1] == 'y' && processName[2] == 's' &&
-                processName[3] == 't' && processName[4] == 'e' && processName[5] == 'm' && processName[6] == '\0') {
-                PEPROCESS currentProcess = NULL;
-                NTSTATUS status = PsLookupProcessByProcessId((HANDLE)(ULONG_PTR)processId, &currentProcess);
-                if (NT_SUCCESS(status) && currentProcess != NULL) {
-                    GetProcessNameA(currentProcess, processName, sizeof(processName));
-                    ObDereferenceObject(currentProcess);
-                }
-            }
+    // Get process name if still unknown
+    if (processId != 0 && processName[0] == 'S' && processName[1] == 'y' && processName[2] == 's' &&
+        processName[3] == 't' && processName[4] == 'e' && processName[5] == 'm' && processName[6] == '\0') {
+        PEPROCESS currentProcess = NULL;
+        NTSTATUS status = PsLookupProcessByProcessId((HANDLE)(ULONG_PTR)processId, &currentProcess);
+        if (NT_SUCCESS(status) && currentProcess != NULL) {
+            GetProcessNameA(currentProcess, processName, sizeof(processName));
+            ObDereferenceObject(currentProcess);
         }
+    }
 
-        // Check blocking logic (same as AleClassifyFn)
+    // Always evaluate rules - single pass, first matching rule wins
+    {
         if (g_IsFilteringEnabled) {
-            // Check blocking by PID first (only if PID known)
-            if (processId != 0 && IsAppBlockedByPid(processId)) {
+            BOOLEAN appBlocked = FALSE;
+            if (processId != 0) appBlocked = IsAppBlockedByPid(processId);
+            if (!appBlocked) appBlocked = IsAppBlockedByName(processName);
+
+            KIRQL ruleIrql;
+            KeAcquireSpinLock(&g_RulesLock, &ruleIrql);
+
+            BOOLEAN ruleMatched = FALSE;
+            ULONG ri, rj;
+            for (ri = 0; ri < g_RuleCount && !ruleMatched; ri++) {
+                if (!g_Rules[ri].IsActive) continue;
+
+                // Match process
+                BOOLEAN processMatch = FALSE;
+                if (g_Rules[ri].ApplicationPath[0] == L'\0' || g_Rules[ri].ApplicationPath[0] == L'*') {
+                    processMatch = TRUE;
+                } else if (g_Rules[ri].ProcessId != 0 && g_Rules[ri].ProcessId == processId) {
+                    processMatch = TRUE;
+                } else {
+                    WCHAR ruleName[64] = { 0 };
+                    const WCHAR* lastSlash = wcsrchr(g_Rules[ri].ApplicationPath, L'\\');
+                    const WCHAR* fileName = lastSlash ? lastSlash + 1 : g_Rules[ri].ApplicationPath;
+                    wcsncpy(ruleName, fileName, 63);
+                    WCHAR* dot = wcsrchr(ruleName, L'.');
+                    if (dot) *dot = L'\0';
+                    WCHAR procNameW[64] = { 0 };
+                    for (int ci = 0; ci < 63 && processName[ci]; ci++)
+                        procNameW[ci] = (WCHAR)processName[ci];
+                    if (_wcsnicmp(ruleName, procNameW, 63) == 0)
+                        processMatch = TRUE;
+                }
+                if (!processMatch) continue;
+
+                // Check direction
+                if (g_Rules[ri].Direction == TrafficDirectionInput && direction != 1) continue;
+                if (g_Rules[ri].Direction == TrafficDirectionOutput && direction != 0) continue;
+
+                ULONG targetIpV4; PUCHAR targetIpV6; USHORT targetPort;
+                if (g_Rules[ri].Direction == TrafficDirectionInput) {
+                    targetIpV4 = remoteIpV4; targetIpV6 = remoteIpV6; targetPort = localPort;
+                } else {
+                    targetIpV4 = remoteIpV4; targetIpV6 = remoteIpV6; targetPort = remotePort;
+                }
+
+                BOOLEAN portOk = (g_Rules[ri].PortRangeCount == 0);
+                for (rj = 0; rj < g_Rules[ri].PortRangeCount; rj++) {
+                    if (targetPort >= g_Rules[ri].PortRanges[rj].StartPort &&
+                        targetPort <= g_Rules[ri].PortRanges[rj].EndPort) { portOk = TRUE; break; }
+                }
+
+                BOOLEAN ipOk = (g_Rules[ri].IpAddressCount == 0);
+                for (rj = 0; rj < g_Rules[ri].IpAddressCount; rj++) {
+                    if (g_Rules[ri].IpAddresses[rj].AddressFamily != addressFamily) continue;
+                    if (addressFamily == ADDRESS_FAMILY_IPV4) {
+                        ULONG maskedT = targetIpV4 & g_Rules[ri].IpAddresses[rj].V4.Mask;
+                        ULONG maskedR = g_Rules[ri].IpAddresses[rj].V4.Address & g_Rules[ri].IpAddresses[rj].V4.Mask;
+                        if (maskedT == maskedR) { ipOk = TRUE; break; }
+                    } else if (addressFamily == ADDRESS_FAMILY_IPV6 && targetIpV6 != NULL) {
+                        if (MatchIPv6Prefix(targetIpV6, g_Rules[ri].IpAddresses[rj].V6.Address,
+                                           g_Rules[ri].IpAddresses[rj].V6.PrefixLength)) { ipOk = TRUE; break; }
+                    }
+                }
+
+                switch (g_Rules[ri].Action) {
+                    case FirewallActionBlock:
+                        if (portOk && ipOk) {
+                            shouldBlock = TRUE; ruleMatched = TRUE;
+                            KfwLog("DATA BLOCK rule#%u proc=%s port=%u", ri, processName, targetPort);
+                        }
+                        break;
+                    case FirewallActionAllow:
+                        if (portOk && ipOk) {
+                            shouldBlock = FALSE; ruleMatched = TRUE;
+                            KfwLog("DATA ALLOW rule#%u proc=%s port=%u", ri, processName, targetPort);
+                        }
+                        break;
+                    case FirewallActionAllowRestricted:
+                        if (portOk && ipOk) { shouldBlock = FALSE; ruleMatched = TRUE; }
+                        else { shouldBlock = TRUE; ruleMatched = TRUE; }
+                        break;
+                }
+            }
+            KeReleaseSpinLock(&g_RulesLock, ruleIrql);
+
+            if (!ruleMatched && appBlocked) {
                 shouldBlock = TRUE;
+                KfwLog("DATA NORULE appBlocked proc=%s port=%u", processName, remotePort);
             }
-            // Check by process name (independent check)
-            if (IsAppBlockedByName(processName)) {
-                shouldBlock = TRUE;
-            }
-            // Check IP-based rules (always check, not else-if)
-            if (addressFamily == ADDRESS_FAMILY_IPV4) {
-                if (processId != 0 && !CheckRuleMatchByPid(processId, addressFamily, localIpV4, NULL, localPort, remoteIpV4, NULL, remotePort, direction)) {
-                    shouldBlock = TRUE;
-                }
-                if (!CheckRuleMatchByName(processName, addressFamily, localIpV4, NULL, localPort, remoteIpV4, NULL, remotePort, direction)) {
-                    shouldBlock = TRUE;
-                }
-                if (!CheckWildcardRules(addressFamily, localIpV4, NULL, localPort, remoteIpV4, NULL, remotePort, direction)) {
-                    shouldBlock = TRUE;
-                }
-            }
-            else if (addressFamily == ADDRESS_FAMILY_IPV6) {
-                if (processId != 0 && !CheckRuleMatchByPid(processId, addressFamily, 0, localIpV6, localPort, 0, remoteIpV6, remotePort, direction)) {
-                    shouldBlock = TRUE;
-                }
-                if (!CheckRuleMatchByName(processName, addressFamily, 0, localIpV6, localPort, 0, remoteIpV6, remotePort, direction)) {
-                    shouldBlock = TRUE;
-                }
-                if (!CheckWildcardRules(addressFamily, 0, localIpV6, localPort, 0, remoteIpV6, remotePort, direction)) {
-                    shouldBlock = TRUE;
-                }
+            if (!ruleMatched && !appBlocked) {
+                KfwLog("DATA PASS proc=%s port=%u", processName, remotePort);
             }
         }
     }
@@ -1436,6 +1618,26 @@ VOID NTAPI DataClassifyFn(
         InterlockedIncrement64(&g_PacketsBlocked);
     } else {
         InterlockedIncrement64(&g_PacketsAllowed);
+    }
+
+    // Update per-process statistics
+    if (processName[0] != '\0') {
+        KIRQL statsIrql;
+        KeAcquireSpinLock(&g_StatsLock, &statsIrql);
+        PPROCESS_STATS_ENTRY pStats = FindOrCreateProcessStats(processName);
+        if (pStats != NULL) {
+            if (direction == 0) { // Outbound
+                pStats->PacketsSent++;
+                pStats->BytesSent += packetLen;
+            } else {
+                pStats->PacketsRecv++;
+                pStats->BytesRecv += packetLen;
+            }
+            if (shouldBlock) {
+                pStats->PacketsBlocked++;
+            }
+        }
+        KeReleaseSpinLock(&g_StatsLock, statsIrql);
     }
 
     // Log with packet data - now we have data even for blocked packets
@@ -1946,6 +2148,37 @@ NTSTATUS DriverDispatch(PDEVICE_OBJECT DeviceObject, PIRP Irp)
                     }
                     break;
 
+                case IOCTL_FIREWALL_GET_PROCESS_STATS:
+                    if (outputLength >= sizeof(GET_PROCESS_STATS_RESPONSE)) {
+                        PGET_PROCESS_STATS_RESPONSE resp = (PGET_PROCESS_STATS_RESPONSE)outputBuffer;
+                        KeAcquireSpinLock(&g_StatsLock, &oldIrql);
+                        resp->Count = g_ProcessStatsCount;
+                        RtlCopyMemory(resp->Entries, g_ProcessStats, g_ProcessStatsCount * sizeof(PROCESS_STATS_ENTRY));
+                        KeReleaseSpinLock(&g_StatsLock, oldIrql);
+                        information = sizeof(GET_PROCESS_STATS_RESPONSE);
+                    }
+                    break;
+
+                case IOCTL_FIREWALL_RESET_STATS:
+                    KeAcquireSpinLock(&g_StatsLock, &oldIrql);
+                    RtlZeroMemory(g_ProcessStats, sizeof(g_ProcessStats));
+                    g_ProcessStatsCount = 0;
+                    KeReleaseSpinLock(&g_StatsLock, oldIrql);
+                    InterlockedExchange64(&g_PacketsBlocked, 0);
+                    InterlockedExchange64(&g_PacketsAllowed, 0);
+                    break;
+
+                case IOCTL_FIREWALL_GET_DEBUG_LOG:
+                    if (outputLength >= DRIVER_LOG_SIZE) {
+                        KeAcquireSpinLock(&g_LogLock, &oldIrql);
+                        RtlCopyMemory(outputBuffer, g_DebugLog, g_LogOffset);
+                        information = g_LogOffset;
+                        g_LogOffset = 0;
+                        RtlZeroMemory(g_DebugLog, DRIVER_LOG_SIZE);
+                        KeReleaseSpinLock(&g_LogLock, oldIrql);
+                    }
+                    break;
+
                 default:
                     status = STATUS_INVALID_DEVICE_REQUEST;
                     break;
@@ -1989,7 +2222,11 @@ NTSTATUS DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING RegistryPath)
     KeInitializeSpinLock(&g_RulesLock);
     KeInitializeSpinLock(&g_BlockedLock);
     KeInitializeSpinLock(&g_CacheLock);
+    KeInitializeSpinLock(&g_StatsLock);
+    KeInitializeSpinLock(&g_LogLock);
     RtlZeroMemory(g_ConnCache, sizeof(g_ConnCache));
+    RtlZeroMemory(g_ProcessStats, sizeof(g_ProcessStats));
+    RtlZeroMemory(g_DebugLog, sizeof(g_DebugLog));
 
     status = InitializeEtw();
     if (!NT_SUCCESS(status)) return status;

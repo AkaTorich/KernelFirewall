@@ -1,0 +1,61 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- ═══════════════════════════════════════════════ -->
+    <!-- HACKER 2000s TERMINAL THEME                     -->
+    <!-- ═══════════════════════════════════════════════ -->
+
+    <!-- Colors -->
+    <Color x:Key="TerminalBlackColor">#0A0A0A</Color>
+    <Color x:Key="DarkBgColor">#0D1117</Color>
+    <Color x:Key="PanelBgColor">#0A0F14</Color>
+    <Color x:Key="MatrixGreenColor">#00FF00</Color>
+    <Color x:Key="DarkGreenColor">#00AA00</Color>
+    <Color x:Key="DimGreenColor">#004400</Color>
+    <Color x:Key="VeryDimGreenColor">#002200</Color>
+    <Color x:Key="AlertRedColor">#FF0000</Color>
+    <Color x:Key="DimRedColor">#AA0000</Color>
+    <Color x:Key="CyanAccentColor">#00FFFF</Color>
+    <Color x:Key="DimCyanColor">#007777</Color>
+    <Color x:Key="AmberColor">#FFAA00</Color>
+    <Color x:Key="GlowGreenColor">#00FF0040</Color>
+    <Color x:Key="SelectionColor">#003300</Color>
+    <Color x:Key="HoverColor">#002200</Color>
+    <Color x:Key="BorderGreenColor">#00551A</Color>
+
+    <!-- Brushes -->
+    <SolidColorBrush x:Key="TerminalBlackBrush" Color="{StaticResource TerminalBlackColor}"/>
+    <SolidColorBrush x:Key="DarkBgBrush" Color="{StaticResource DarkBgColor}"/>
+    <SolidColorBrush x:Key="PanelBgBrush" Color="{StaticResource PanelBgColor}"/>
+    <SolidColorBrush x:Key="MatrixGreenBrush" Color="{StaticResource MatrixGreenColor}"/>
+    <SolidColorBrush x:Key="DarkGreenBrush" Color="{StaticResource DarkGreenColor}"/>
+    <SolidColorBrush x:Key="DimGreenBrush" Color="{StaticResource DimGreenColor}"/>
+    <SolidColorBrush x:Key="VeryDimGreenBrush" Color="{StaticResource VeryDimGreenColor}"/>
+    <SolidColorBrush x:Key="AlertRedBrush" Color="{StaticResource AlertRedColor}"/>
+    <SolidColorBrush x:Key="DimRedBrush" Color="{StaticResource DimRedColor}"/>
+    <SolidColorBrush x:Key="CyanAccentBrush" Color="{StaticResource CyanAccentColor}"/>
+    <SolidColorBrush x:Key="DimCyanBrush" Color="{StaticResource DimCyanColor}"/>
+    <SolidColorBrush x:Key="AmberBrush" Color="{StaticResource AmberColor}"/>
+    <SolidColorBrush x:Key="GlowGreenBrush" Color="{StaticResource GlowGreenColor}"/>
+    <SolidColorBrush x:Key="SelectionBrush" Color="{StaticResource SelectionColor}"/>
+    <SolidColorBrush x:Key="HoverBrush" Color="{StaticResource HoverColor}"/>
+    <SolidColorBrush x:Key="BorderGreenBrush" Color="{StaticResource BorderGreenColor}"/>
+
+    <!-- Fonts -->
+    <FontFamily x:Key="TerminalFont">Consolas, Courier New, monospace</FontFamily>
+
+    <!-- Glow Effects -->
+    <DropShadowEffect x:Key="GreenGlow" Color="#00FF00" BlurRadius="12" ShadowDepth="0" Opacity="0.4"/>
+    <DropShadowEffect x:Key="GreenGlowStrong" Color="#00FF00" BlurRadius="20" ShadowDepth="0" Opacity="0.6"/>
+    <DropShadowEffect x:Key="RedGlow" Color="#FF0000" BlurRadius="12" ShadowDepth="0" Opacity="0.4"/>
+    <DropShadowEffect x:Key="CyanGlow" Color="#00FFFF" BlurRadius="12" ShadowDepth="0" Opacity="0.4"/>
+
+    <!-- Window Style -->
+    <Style x:Key="HackerWindowStyle" TargetType="Window">
+        <Setter Property="Background" Value="{StaticResource TerminalBlackBrush}"/>
+        <Setter Property="FontFamily" Value="{StaticResource TerminalFont}"/>
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="Foreground" Value="{StaticResource MatrixGreenBrush}"/>
+    </Style>
+
+</ResourceDictionary>

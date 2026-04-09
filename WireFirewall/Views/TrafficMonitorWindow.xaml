@@ -1,0 +1,193 @@
+<views:HackerWindow x:Class="HackerFirewall.Views.TrafficMonitorWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:views="clr-namespace:HackerFirewall.Views"
+        xmlns:controls="clr-namespace:HackerFirewall.Controls"
+        xmlns:conv="clr-namespace:HackerFirewall.Converters"
+        Title="TRAFFIC MONITOR"
+        Height="750" Width="1400" MinWidth="900" MinHeight="500"
+        WindowStartupLocation="CenterScreen">
+
+    <Window.Resources>
+        <conv:BoolToVisibilityConverter x:Key="BoolToVis"/>
+        <conv:NotNullToVisibilityConverter x:Key="NotNullToVis"/>
+        <conv:NullToVisibilityConverter x:Key="NullToVis"/>
+        <conv:BoolToMonitorTextConverter x:Key="BoolToMonText"/>
+        <conv:BlockedToBrushConverter x:Key="BlockedBrush"/>
+        <conv:BlockedToStatusTextConverter x:Key="BlockedStatus"/>
+    </Window.Resources>
+
+    <Border Background="{StaticResource TerminalBlackBrush}"
+            BorderBrush="{StaticResource DimGreenBrush}" BorderThickness="1">
+    <Grid>
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- Custom Title Bar -->
+            <Border Grid.Row="0" Background="{StaticResource PanelBgBrush}"
+                    BorderBrush="{StaticResource DimGreenBrush}" BorderThickness="0,0,0,1"
+                    MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+                <Grid Height="30">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Grid.Column="0" Text=" TRAFFIC MONITOR" FontFamily="{StaticResource TerminalFont}"
+                               Foreground="{StaticResource CyanAccentBrush}" FontWeight="Bold" FontSize="12"
+                               VerticalAlignment="Center" Margin="6,0,12,0">
+                        <TextBlock.Effect>
+                            <DropShadowEffect Color="#00FFFF" BlurRadius="8" ShadowDepth="0" Opacity="0.5"/>
+                        </TextBlock.Effect>
+                    </TextBlock>
+
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Button Content="{Binding IsMonitoring, Converter={StaticResource BoolToMonText}}"
+                                Command="{Binding ToggleMonitoringCommand}" Margin="0,0,3,0" Padding="6,2"/>
+                        <Button Content="CLEAR" Command="{Binding ClearTrafficCommand}" Padding="6,2"/>
+                    </StackPanel>
+
+                    <TextBlock Grid.Column="2" VerticalAlignment="Center" Margin="12,0,0,0">
+                        <Run Text="Events: " Foreground="{StaticResource DimGreenBrush}"/>
+                        <Run Text="{Binding EventCount, Mode=OneWay}" Foreground="{StaticResource MatrixGreenBrush}" FontWeight="Bold"/>
+                        <Run Text="  "/>
+                        <Run Text="{Binding StatusText, Mode=OneWay}" Foreground="{StaticResource AmberBrush}"/>
+                    </TextBlock>
+
+                    <!-- Window Buttons -->
+                    <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,2,0">
+                        <Button Content="—" Click="Minimize_Click" Width="30" Height="24" Padding="0" FontSize="14" VerticalContentAlignment="Center"/>
+                        <Button Content="□" Click="Maximize_Click" Width="30" Height="24" Padding="0" FontSize="13" VerticalContentAlignment="Center"/>
+                        <Button Content="X" Click="CloseWindow_Click" Width="30" Height="24" Padding="0" FontSize="12"
+                                VerticalContentAlignment="Center" Foreground="{StaticResource AlertRedBrush}"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- Filters -->
+            <Border Grid.Row="1" BorderBrush="{StaticResource VeryDimGreenBrush}" BorderThickness="0,0,0,1" Padding="6,3"
+                    Background="{StaticResource PanelBgBrush}">
+                <WrapPanel VerticalAlignment="Center">
+                    <TextBlock Text="Filter: " Foreground="{StaticResource DimGreenBrush}" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                    <TextBox Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}" Width="200" Margin="0,0,12,0"/>
+                    <CheckBox Content="TCP" IsChecked="{Binding ShowTcp}" Margin="0,0,10,0"/>
+                    <CheckBox Content="UDP" IsChecked="{Binding ShowUdp}" Margin="0,0,10,0"/>
+                    <CheckBox Content="BLOCKED" IsChecked="{Binding ShowBlocked}" Margin="0,0,10,0" Foreground="{StaticResource AlertRedBrush}"/>
+                    <CheckBox Content="ALLOWED" IsChecked="{Binding ShowAllowed}" Foreground="{StaticResource DarkGreenBrush}"/>
+                </WrapPanel>
+            </Border>
+
+            <!-- Main Content: Traffic + Details -->
+            <Grid Grid.Row="2" Margin="4">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" MinWidth="500"/>
+                    <ColumnDefinition Width="5"/>
+                    <ColumnDefinition Width="500" MinWidth="350"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Traffic List -->
+                <controls:GlowBorder Grid.Column="0">
+                    <ListBox x:Name="TrafficList"
+                             ItemsSource="{Binding TrafficEntries}"
+                             SelectedItem="{Binding SelectedEntry}"
+                             ScrollViewer.HorizontalScrollBarVisibility="Auto">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="70"/>
+                                        <ColumnDefinition Width="35"/>
+                                        <ColumnDefinition Width="35"/>
+                                        <ColumnDefinition Width="35"/>
+                                        <ColumnDefinition Width="100"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="70"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <TextBlock Grid.Column="0" Text="{Binding Timestamp, StringFormat=HH:mm:ss}" Foreground="{StaticResource DimGreenBrush}" FontSize="11"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding ProtocolText}" Foreground="{StaticResource CyanAccentBrush}" FontSize="11" FontWeight="Bold"/>
+                                    <TextBlock Grid.Column="2" Text="{Binding IpVersionHeader}" Foreground="{StaticResource DimCyanBrush}" FontSize="10"/>
+                                    <TextBlock Grid.Column="3" Text="{Binding DirectionArrow}"
+                                               Foreground="{StaticResource AmberBrush}" FontSize="11" FontWeight="Bold"/>
+                                    <TextBlock Grid.Column="4" Text="{Binding ProcessName}" Foreground="{StaticResource DarkGreenBrush}" FontSize="11" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock Grid.Column="5" Text="{Binding Summary}" Foreground="{StaticResource DimGreenBrush}" FontSize="11" TextTrimming="CharacterEllipsis" Margin="4,0"/>
+                                    <TextBlock Grid.Column="6" Text="{Binding StatusText}"
+                                               Foreground="{Binding WasBlocked, Converter={StaticResource BlockedBrush}}"
+                                               FontSize="10" FontWeight="Bold"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </controls:GlowBorder>
+
+                <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch"/>
+
+                <!-- Packet Details -->
+                <controls:GlowBorder Grid.Column="2">
+                    <Grid>
+                        <TextBlock Text="&lt;&lt; SELECT PACKET &gt;&gt;"
+                                   Foreground="{StaticResource DimGreenBrush}"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14"
+                                   Visibility="{Binding FrozenEntry, Converter={StaticResource NullToVis}}"/>
+
+                        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                      Visibility="{Binding FrozenEntry, Converter={StaticResource NotNullToVis}}">
+                            <StackPanel DataContext="{Binding FrozenEntry}" Margin="4">
+                                <Border Padding="6,3" Margin="0,0,0,6"
+                                        Background="{Binding WasBlocked, Converter={StaticResource BlockedBrush}}"
+                                        HorizontalAlignment="Stretch">
+                                    <TextBlock Text="{Binding WasBlocked, Converter={StaticResource BlockedStatus}}"
+                                               Foreground="Black" FontWeight="Bold" HorizontalAlignment="Center" FontSize="14"/>
+                                </Border>
+
+                                <TextBlock Text="═══ LAYER 2: ETHERNET II ═══" Foreground="{StaticResource CyanAccentBrush}" FontWeight="Bold" Margin="0,0,0,2"/>
+                                <TextBlock><Run Text="  EtherType: " Foreground="{StaticResource DimGreenBrush}"/><Run Text="{Binding EtherType, Mode=OneWay}" Foreground="{StaticResource MatrixGreenBrush}"/></TextBlock>
+                                <TextBlock><Run Text="  Src MAC:   " Foreground="{StaticResource DimGreenBrush}"/><Run Text="{Binding SourceMac, Mode=OneWay}" Foreground="{StaticResource DarkGreenBrush}"/></TextBlock>
+                                <TextBlock><Run Text="  Dst MAC:   " Foreground="{StaticResource DimGreenBrush}"/><Run Text="{Binding DestinationMac, Mode=OneWay}" Foreground="{StaticResource DarkGreenBrush}"/></TextBlock>
+
+                                <TextBlock Text="═══ LAYER 3: IP ═══" Foreground="{StaticResource DarkGreenBrush}" FontWeight="Bold" Margin="0,6,0,2"/>
+                                <TextBlock><Run Text="  Version:   " Foreground="{StaticResource DimGreenBrush}"/><Run Text="{Binding IpVersionHeader, Mode=OneWay}" Foreground="{StaticResource MatrixGreenBrush}"/></TextBlock>
+                                <TextBlock><Run Text="  Protocol:  " Foreground="{StaticResource DimGreenBrush}"/><Run Text="{Binding IpProtocolInfo, Mode=OneWay}" Foreground="{StaticResource DarkGreenBrush}"/></TextBlock>
+                                <TextBlock><Run Text="  Src IP:    " Foreground="{StaticResource DimGreenBrush}"/><Run Text="{Binding LocalIpOnly, Mode=OneWay}" Foreground="{StaticResource MatrixGreenBrush}"/></TextBlock>
+                                <TextBlock><Run Text="  Dst IP:    " Foreground="{StaticResource DimGreenBrush}"/><Run Text="{Binding RemoteIpOnly, Mode=OneWay}" Foreground="{StaticResource MatrixGreenBrush}"/></TextBlock>
+
+                                <TextBlock Text="═══ LAYER 4: TRANSPORT ═══" Foreground="{StaticResource AmberBrush}" FontWeight="Bold" Margin="0,6,0,2"/>
+                                <TextBlock><Run Text="  Protocol:  " Foreground="{StaticResource DimGreenBrush}"/><Run Text="{Binding ProtocolText, Mode=OneWay}" Foreground="{StaticResource CyanAccentBrush}" FontWeight="Bold"/></TextBlock>
+                                <TextBlock><Run Text="  Src Port:  " Foreground="{StaticResource DimGreenBrush}"/><Run Text="{Binding LocalPortOnly, Mode=OneWay}" Foreground="{StaticResource DarkGreenBrush}"/></TextBlock>
+                                <TextBlock><Run Text="  Dst Port:  " Foreground="{StaticResource DimGreenBrush}"/><Run Text="{Binding RemotePortOnly, Mode=OneWay}" Foreground="{StaticResource DarkGreenBrush}"/></TextBlock>
+
+                                <TextBlock Text="═══ LAYER 7: APPLICATION ═══" Foreground="{StaticResource AlertRedBrush}" FontWeight="Bold" Margin="0,6,0,2"/>
+                                <TextBlock><Run Text="  Process:   " Foreground="{StaticResource DimGreenBrush}"/><Run Text="{Binding ProcessName, Mode=OneWay}" Foreground="{StaticResource MatrixGreenBrush}"/></TextBlock>
+                                <TextBlock><Run Text="  PID:       " Foreground="{StaticResource DimGreenBrush}"/><Run Text="{Binding ProcessId, Mode=OneWay}" Foreground="{StaticResource DarkGreenBrush}"/></TextBlock>
+                                <TextBlock><Run Text="  Service:   " Foreground="{StaticResource DimGreenBrush}"/><Run Text="{Binding ServiceGuess, Mode=OneWay}" Foreground="{StaticResource AmberBrush}"/></TextBlock>
+                                <TextBlock><Run Text="  Direction: " Foreground="{StaticResource DimGreenBrush}"/><Run Text="{Binding DirectionText, Mode=OneWay}" Foreground="{StaticResource DarkGreenBrush}"/></TextBlock>
+                                <TextBlock><Run Text="  Data Size: " Foreground="{StaticResource DimGreenBrush}"/><Run Text="{Binding PacketDataLength, Mode=OneWay}" Foreground="{StaticResource DarkGreenBrush}"/><Run Text=" bytes" Foreground="{StaticResource DimGreenBrush}"/></TextBlock>
+
+                                <TextBlock Text="═══ RAW DATA ═══" Foreground="{StaticResource DimCyanBrush}" FontWeight="Bold" Margin="0,6,0,2"/>
+                                <Border Background="#05000000" BorderBrush="{StaticResource VeryDimGreenBrush}" BorderThickness="1" Padding="4">
+                                    <TextBlock Text="{Binding PacketHexDump, Mode=OneWay}"
+                                               FontFamily="{StaticResource TerminalFont}" FontSize="10"
+                                               Foreground="{StaticResource DimGreenBrush}" TextWrapping="NoWrap"/>
+                                </Border>
+
+                                <TextBlock Text="═══ TIMING ═══" Foreground="{StaticResource DimCyanBrush}" FontWeight="Bold" Margin="0,6,0,2"/>
+                                <TextBlock><Run Text="  Captured:  " Foreground="{StaticResource DimGreenBrush}"/><Run Text="{Binding Timestamp, StringFormat=HH:mm:ss.fff, Mode=OneWay}" Foreground="{StaticResource DarkGreenBrush}"/></TextBlock>
+                                <TextBlock><Run Text="  UTC Off:   " Foreground="{StaticResource DimGreenBrush}"/><Run Text="{Binding UtcOffset, Mode=OneWay}" Foreground="{StaticResource DarkGreenBrush}"/></TextBlock>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Grid>
+                </controls:GlowBorder>
+            </Grid>
+        </Grid>
+
+        <controls:ScanlineOverlay/>
+    </Grid>
+    </Border>
+</views:HackerWindow>
