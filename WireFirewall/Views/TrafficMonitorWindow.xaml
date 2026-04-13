@@ -140,12 +140,19 @@
                         <ScrollViewer VerticalScrollBarVisibility="Auto"
                                       Visibility="{Binding FrozenEntry, Converter={StaticResource NotNullToVis}}">
                             <StackPanel DataContext="{Binding FrozenEntry}" Margin="4">
-                                <Border Padding="6,3" Margin="0,0,0,6"
-                                        Background="{Binding WasBlocked, Converter={StaticResource BlockedBrush}}"
-                                        HorizontalAlignment="Stretch">
-                                    <TextBlock Text="{Binding WasBlocked, Converter={StaticResource BlockedStatus}}"
-                                               Foreground="Black" FontWeight="Bold" HorizontalAlignment="Center" FontSize="14"/>
-                                </Border>
+                                <Grid Margin="0,0,0,6">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0" Padding="6,3"
+                                            Background="{Binding WasBlocked, Converter={StaticResource BlockedBrush}}">
+                                        <TextBlock Text="{Binding WasBlocked, Converter={StaticResource BlockedStatus}}"
+                                                   Foreground="Black" FontWeight="Bold" HorizontalAlignment="Center" FontSize="14"/>
+                                    </Border>
+                                    <Button Grid.Column="1" Content="INSPECT" Click="InspectPacket_Click"
+                                            Padding="8,3" Margin="4,0,0,0" VerticalAlignment="Stretch"/>
+                                </Grid>
 
                                 <TextBlock Text="═══ LAYER 2: ETHERNET II ═══" Foreground="{StaticResource CyanAccentBrush}" FontWeight="Bold" Margin="0,0,0,2"/>
                                 <TextBlock><Run Text="  EtherType: " Foreground="{StaticResource DimGreenBrush}"/><Run Text="{Binding EtherType, Mode=OneWay}" Foreground="{StaticResource MatrixGreenBrush}"/></TextBlock>

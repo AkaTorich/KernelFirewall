@@ -1,5 +1,6 @@
 using System.Collections.Specialized;
 using System.Windows;
+using HackerFirewall.Models;
 using HackerFirewall.Services;
 using HackerFirewall.ViewModels;
 
@@ -30,6 +31,15 @@ namespace HackerFirewall.Views
             {
                 if (TrafficList.Items.Count > 0)
                     TrafficList.ScrollIntoView(TrafficList.Items[TrafficList.Items.Count - 1]);
+            }
+        }
+
+        private void InspectPacket_Click(object sender, RoutedEventArgs e)
+        {
+            if (_viewModel.FrozenEntry != null)
+            {
+                var viewer = new PacketViewerWindow(_viewModel.FrozenEntry);
+                viewer.Show();
             }
         }
     }

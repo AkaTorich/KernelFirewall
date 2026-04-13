@@ -507,6 +507,102 @@
         <Setter Property="Width" Value="0"/>
     </Style>
 
+    <!-- TREEVIEW -->
+    <Style TargetType="TreeView">
+        <Setter Property="FontFamily" Value="{StaticResource TerminalFont}"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Foreground" Value="{StaticResource DarkGreenBrush}"/>
+        <Setter Property="Background" Value="{StaticResource TerminalBlackBrush}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource DimGreenBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+    </Style>
+
+    <!-- TreeView toggle button (expand/collapse arrow) -->
+    <Style x:Key="TreeViewToggle" TargetType="ToggleButton">
+        <Setter Property="Focusable" Value="False"/>
+        <Setter Property="Width" Value="16"/>
+        <Setter Property="Height" Value="16"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToggleButton">
+                    <Border Background="Transparent" Width="16" Height="16">
+                        <TextBlock x:Name="Arrow" Text="+" FontFamily="{StaticResource TerminalFont}"
+                                   Foreground="{StaticResource DimGreenBrush}" FontSize="12" FontWeight="Bold"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Arrow" Property="Text" Value="-"/>
+                            <Setter TargetName="Arrow" Property="Foreground" Value="{StaticResource MatrixGreenBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Arrow" Property="Foreground" Value="{StaticResource MatrixGreenBrush}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style TargetType="TreeViewItem">
+        <Setter Property="FontFamily" Value="{StaticResource TerminalFont}"/>
+        <Setter Property="Foreground" Value="{StaticResource DarkGreenBrush}"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Padding" Value="2,1"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TreeViewItem">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition/>
+                        </Grid.RowDefinitions>
+                        <Border x:Name="Bd" Grid.Row="0" Background="{TemplateBinding Background}"
+                                Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True">
+                            <StackPanel Orientation="Horizontal">
+                                <ToggleButton x:Name="Expander" Style="{StaticResource TreeViewToggle}"
+                                              IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}}"
+                                              ClickMode="Press"/>
+                                <ContentPresenter x:Name="PART_Header" ContentSource="Header"
+                                                  HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                        <ItemsPresenter x:Name="ItemsHost" Grid.Row="1" Margin="18,0,0,0"
+                                        Visibility="Collapsed"/>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsExpanded" Value="True">
+                            <Setter TargetName="ItemsHost" Property="Visibility" Value="Visible"/>
+                        </Trigger>
+                        <Trigger Property="HasItems" Value="False">
+                            <Setter TargetName="Expander" Property="Visibility" Value="Hidden"/>
+                        </Trigger>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource SelectionBrush}"/>
+                        </Trigger>
+                        <MultiTrigger>
+                            <MultiTrigger.Conditions>
+                                <Condition Property="IsMouseOver" Value="True"/>
+                                <Condition Property="IsSelected" Value="False"/>
+                            </MultiTrigger.Conditions>
+                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource HoverBrush}"/>
+                        </MultiTrigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- CONTEXTMENU -->
+    <Style TargetType="ContextMenu">
+        <Setter Property="FontFamily" Value="{StaticResource TerminalFont}"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Foreground" Value="{StaticResource DarkGreenBrush}"/>
+        <Setter Property="Background" Value="{StaticResource TerminalBlackBrush}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource DimGreenBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+    </Style>
+
     <!-- LABEL -->
     <Style TargetType="Label">
         <Setter Property="FontFamily" Value="{StaticResource TerminalFont}"/>
