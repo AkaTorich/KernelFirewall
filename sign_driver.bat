@@ -10,7 +10,7 @@ set DRIVER_PATH=%~dp0bin\Release\x64\KernelFirewall.sys
 set CERT_NAME=KernelFirewallTestCert
 
 if not exist "%DRIVER_PATH%" (
-    set DRIVER_PATH=%~dp0bin\Debug\x64\KernelFirewall.sys
+    set DRIVER_PATH=%~dp0bin\Release\x64\KernelFirewall.sys
 )
 
 if not exist "%DRIVER_PATH%" (
