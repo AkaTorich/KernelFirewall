@@ -18,7 +18,7 @@
     </Window.Resources>
 
     <Border Background="{StaticResource TerminalBlackBrush}"
-            BorderBrush="{StaticResource DimGreenBrush}" BorderThickness="1">
+            BorderBrush="#FFFF00" BorderThickness="1">
     <Grid>
         <Grid>
             <Grid.RowDefinitions>

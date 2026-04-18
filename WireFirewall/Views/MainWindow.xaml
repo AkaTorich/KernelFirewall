@@ -22,7 +22,7 @@
     </Window.Resources>
 
     <Border Background="{StaticResource TerminalBlackBrush}"
-            BorderBrush="{StaticResource DimGreenBrush}" BorderThickness="1">
+            BorderBrush="#FFFF00" BorderThickness="1">
     <Grid>
         <!-- Main Content -->
         <Grid Margin="0">
