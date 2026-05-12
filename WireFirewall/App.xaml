@@ -8,6 +8,7 @@
                 <ResourceDictionary Source="Themes/HackerTheme.xaml"/>
                 <ResourceDictionary Source="Themes/TerminalControls.xaml"/>
                 <ResourceDictionary Source="Themes/ScanlineOverlay.xaml"/>
+                <ResourceDictionary Source="Themes/Icons.xaml"/>
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </Application.Resources>

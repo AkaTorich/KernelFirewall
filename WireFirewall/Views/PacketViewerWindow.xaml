@@ -41,8 +41,13 @@
                     <TextBlock Grid.Column="1" x:Name="SummaryText" VerticalAlignment="Center"
                                Foreground="{StaticResource DimGreenBrush}" FontSize="11"/>
 
-                    <Button Grid.Column="2" Content="COPY ALL" Click="CopyAll_Click" Padding="6,2"
-                            VerticalAlignment="Center" Margin="0,0,4,0"/>
+                    <Button Grid.Column="2" Click="CopyAll_Click" Padding="6,2"
+                            VerticalAlignment="Center" Margin="0,0,4,0">
+                        <StackPanel Orientation="Horizontal">
+                            <Image Source="{StaticResource CopyIcon}" Width="14" Height="14" Margin="0,0,4,0"/>
+                            <TextBlock Text="COPY ALL" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
 
                     <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,2,0">
                         <Button Content="—" Click="Minimize_Click" Width="30" Height="24" Padding="0" FontSize="14" VerticalContentAlignment="Center"/>

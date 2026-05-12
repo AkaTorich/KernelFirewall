@@ -109,9 +109,29 @@
                     <TextBlock Grid.Column="4" Text="ALLOWED: " Foreground="{StaticResource DimGreenBrush}"/>
                     <TextBlock Grid.Column="5" Text="{Binding PacketsAllowed}" Foreground="{StaticResource DarkGreenBrush}" FontWeight="Bold" Margin="0,0,20,0"/>
 
-                    <Button Grid.Column="7" Content="{Binding IsFirewallEnabled, Converter={StaticResource BoolToToggle}}"
-                            Command="{Binding ToggleFirewallCommand}" Margin="0,0,4,0" Padding="8,2"/>
-                    <Button Grid.Column="8" Content="MONITOR" Click="OpenTrafficMonitor_Click" Padding="8,2"/>
+                    <Button Grid.Column="7" Command="{Binding ToggleFirewallCommand}" Margin="0,0,4,0" Padding="8,2">
+                        <StackPanel Orientation="Horizontal">
+                            <Image Width="14" Height="14" Margin="0,0,4,0">
+                                <Image.Style>
+                                    <Style TargetType="Image">
+                                        <Setter Property="Source" Value="{StaticResource PlayIcon}"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsFirewallEnabled}" Value="True">
+                                                <Setter Property="Source" Value="{StaticResource StopIcon}"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Image.Style>
+                            </Image>
+                            <TextBlock Text="{Binding IsFirewallEnabled, Converter={StaticResource BoolToToggle}}" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Grid.Column="8" Click="OpenTrafficMonitor_Click" Padding="8,2">
+                        <StackPanel Orientation="Horizontal">
+                            <Image Source="{StaticResource GraphIcon}" Width="14" Height="14" Margin="0,0,4,0"/>
+                            <TextBlock Text="MONITOR" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
                 </Grid>
             </Border>
 
@@ -139,9 +159,24 @@
 
                         <!-- Filter + Buttons compact -->
                         <WrapPanel Grid.Row="1" Margin="0,0,0,2">
-                            <Button Content="REFRESH" Command="{Binding RefreshProcessesCommand}" Margin="0,0,3,0" Padding="6,2"/>
-                            <Button Content="ALL" Command="{Binding SelectAllProcessesCommand}" Margin="0,0,3,0" Padding="6,2"/>
-                            <Button Content="NONE" Command="{Binding DeselectAllProcessesCommand}" Margin="0,0,6,0" Padding="6,2"/>
+                            <Button Command="{Binding RefreshProcessesCommand}" Margin="0,0,3,0" Padding="6,2">
+                                <StackPanel Orientation="Horizontal">
+                                    <Image Source="{StaticResource RefreshIcon}" Width="14" Height="14" Margin="0,0,4,0"/>
+                                    <TextBlock Text="REFRESH" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+                            <Button Command="{Binding SelectAllProcessesCommand}" Margin="0,0,3,0" Padding="6,2">
+                                <StackPanel Orientation="Horizontal">
+                                    <Image Source="{StaticResource AddIcon}" Width="14" Height="14" Margin="0,0,4,0"/>
+                                    <TextBlock Text="ALL" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+                            <Button Command="{Binding DeselectAllProcessesCommand}" Margin="0,0,6,0" Padding="6,2">
+                                <StackPanel Orientation="Horizontal">
+                                    <Image Source="{StaticResource RemoveIcon}" Width="14" Height="14" Margin="0,0,4,0"/>
+                                    <TextBlock Text="NONE" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
                             <CheckBox Content="Sys" IsChecked="{Binding ShowSystemProcesses}" Margin="0,0,6,0"/>
                             <CheckBox Content="Dup" IsChecked="{Binding ShowAllInstances}"/>
                         </WrapPanel>
@@ -212,10 +247,30 @@
 
                         <!-- Process Actions compact -->
                         <WrapPanel Grid.Row="3">
-                            <Button Content="BLOCK" Command="{Binding BlockSelectedProcessCommand}" Margin="0,0,3,0" Padding="6,2"/>
-                            <Button Content="BLOCK ALL" Command="{Binding BlockSelectedProcessesCommand}" Margin="0,0,3,0" Padding="6,2"/>
-                            <Button Content="BY NAME" Command="{Binding BlockByNameCommand}" Margin="0,0,3,0" Padding="6,2"/>
-                            <Button Content="PATH" Command="{Binding UseSelectedProcessPathCommand}" Padding="6,2"/>
+                            <Button Command="{Binding BlockSelectedProcessCommand}" Margin="0,0,3,0" Padding="6,2">
+                                <StackPanel Orientation="Horizontal">
+                                    <Image Source="{StaticResource StopIcon}" Width="14" Height="14" Margin="0,0,4,0"/>
+                                    <TextBlock Text="BLOCK" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+                            <Button Command="{Binding BlockSelectedProcessesCommand}" Margin="0,0,3,0" Padding="6,2">
+                                <StackPanel Orientation="Horizontal">
+                                    <Image Source="{StaticResource StopIcon}" Width="14" Height="14" Margin="0,0,4,0"/>
+                                    <TextBlock Text="BLOCK ALL" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+                            <Button Command="{Binding BlockByNameCommand}" Margin="0,0,3,0" Padding="6,2">
+                                <StackPanel Orientation="Horizontal">
+                                    <Image Source="{StaticResource SearchIcon}" Width="14" Height="14" Margin="0,0,4,0"/>
+                                    <TextBlock Text="BY NAME" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+                            <Button Command="{Binding UseSelectedProcessPathCommand}" Padding="6,2">
+                                <StackPanel Orientation="Horizontal">
+                                    <Image Source="{StaticResource FolderIcon}" Width="14" Height="14" Margin="0,0,4,0"/>
+                                    <TextBlock Text="PATH" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
                         </WrapPanel>
                     </Grid>
                 </controls:GlowBorder>
@@ -250,8 +305,18 @@
                             </ListBox>
 
                             <WrapPanel Grid.Row="2">
-                                <Button Content="UNBLOCK" Command="{Binding UnblockSelectedAppCommand}" Margin="0,0,3,0" Padding="6,2"/>
-                                <Button Content="UNBLOCK ALL" Command="{Binding UnblockAllAppsCommand}" Padding="6,2"/>
+                                <Button Command="{Binding UnblockSelectedAppCommand}" Margin="0,0,3,0" Padding="6,2">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Image Source="{StaticResource PlayIcon}" Width="14" Height="14" Margin="0,0,4,0"/>
+                                        <TextBlock Text="UNBLOCK" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Command="{Binding UnblockAllAppsCommand}" Padding="6,2">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Image Source="{StaticResource PlayIcon}" Width="14" Height="14" Margin="0,0,4,0"/>
+                                        <TextBlock Text="UNBLOCK ALL" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
                             </WrapPanel>
                         </Grid>
                     </controls:GlowBorder>
@@ -263,9 +328,24 @@
                         <StackPanel>
                             <TextBlock Text="SESSION" Foreground="{StaticResource AmberBrush}" FontWeight="Bold" Margin="0,0,0,2"/>
                             <WrapPanel>
-                                <Button Content="SAVE" Command="{Binding SaveSessionCommand}" Margin="0,0,3,0" Padding="6,2"/>
-                                <Button Content="LOAD" Command="{Binding LoadSessionCommand}" Margin="0,0,3,0" Padding="6,2"/>
-                                <Button Content="RECONNECT" Command="{Binding ConnectToDriverCommand}" Padding="6,2"/>
+                                <Button Command="{Binding SaveSessionCommand}" Margin="0,0,3,0" Padding="6,2">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Image Source="{StaticResource DownloadIcon}" Width="14" Height="14" Margin="0,0,4,0"/>
+                                        <TextBlock Text="SAVE" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Command="{Binding LoadSessionCommand}" Margin="0,0,3,0" Padding="6,2">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Image Source="{StaticResource OpenFileIcon}" Width="14" Height="14" Margin="0,0,4,0"/>
+                                        <TextBlock Text="LOAD" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Command="{Binding ConnectToDriverCommand}" Padding="6,2">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Image Source="{StaticResource ConnectionIcon}" Width="14" Height="14" Margin="0,0,4,0"/>
+                                        <TextBlock Text="RECONNECT" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
                             </WrapPanel>
                         </StackPanel>
                     </controls:GlowBorder>
@@ -328,7 +408,12 @@
                                 </ComboBox>
 
                                 <Button Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="2"
-                                        Content="ADD RULE" Command="{Binding AddRuleCommand}" HorizontalAlignment="Stretch" Margin="0,3,0,0" Padding="6,2"/>
+                                        Command="{Binding AddRuleCommand}" HorizontalAlignment="Stretch" Margin="0,3,0,0" Padding="6,2">
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                        <Image Source="{StaticResource AddIcon}" Width="14" Height="14" Margin="0,0,4,0"/>
+                                        <TextBlock Text="ADD RULE" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
                             </Grid>
                         </Border>
 
@@ -357,8 +442,18 @@
                         <WrapPanel Grid.Row="3">
                             <Button Content="▲" Command="{Binding MoveRuleUpCommand}" Margin="0,0,2,0" Padding="6,2" Width="24" ToolTip="Move rule up (higher priority)"/>
                             <Button Content="▼" Command="{Binding MoveRuleDownCommand}" Margin="0,0,6,0" Padding="6,2" Width="24" ToolTip="Move rule down (lower priority)"/>
-                            <Button Content="DELETE" Command="{Binding RemoveSelectedRuleCommand}" Margin="0,0,3,0" Padding="6,2"/>
-                            <Button Content="CLEAR ALL" Command="{Binding ClearAllRulesCommand}" Padding="6,2"/>
+                            <Button Command="{Binding RemoveSelectedRuleCommand}" Margin="0,0,3,0" Padding="6,2">
+                                <StackPanel Orientation="Horizontal">
+                                    <Image Source="{StaticResource RemoveIcon}" Width="14" Height="14" Margin="0,0,4,0"/>
+                                    <TextBlock Text="DELETE" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+                            <Button Command="{Binding ClearAllRulesCommand}" Padding="6,2">
+                                <StackPanel Orientation="Horizontal">
+                                    <Image Source="{StaticResource CloseIcon}" Width="14" Height="14" Margin="0,0,4,0"/>
+                                    <TextBlock Text="CLEAR ALL" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
                         </WrapPanel>
                     </Grid>
                 </controls:GlowBorder>

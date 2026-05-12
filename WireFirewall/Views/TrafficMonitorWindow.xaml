@@ -49,9 +49,29 @@
                     </TextBlock>
 
                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                        <Button Content="{Binding IsMonitoring, Converter={StaticResource BoolToMonText}}"
-                                Command="{Binding ToggleMonitoringCommand}" Margin="0,0,3,0" Padding="6,2"/>
-                        <Button Content="CLEAR" Command="{Binding ClearTrafficCommand}" Padding="6,2"/>
+                        <Button Command="{Binding ToggleMonitoringCommand}" Margin="0,0,3,0" Padding="6,2">
+                            <StackPanel Orientation="Horizontal">
+                                <Image Width="14" Height="14" Margin="0,0,4,0">
+                                    <Image.Style>
+                                        <Style TargetType="Image">
+                                            <Setter Property="Source" Value="{StaticResource PlayIcon}"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsMonitoring}" Value="True">
+                                                    <Setter Property="Source" Value="{StaticResource StopIcon}"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Image.Style>
+                                </Image>
+                                <TextBlock Text="{Binding IsMonitoring, Converter={StaticResource BoolToMonText}}" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Command="{Binding ClearTrafficCommand}" Padding="6,2">
+                            <StackPanel Orientation="Horizontal">
+                                <Image Source="{StaticResource RemoveIcon}" Width="14" Height="14" Margin="0,0,4,0"/>
+                                <TextBlock Text="CLEAR" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
                     </StackPanel>
 
                     <TextBlock Grid.Column="2" VerticalAlignment="Center" Margin="12,0,0,0">
@@ -150,8 +170,13 @@
                                         <TextBlock Text="{Binding WasBlocked, Converter={StaticResource BlockedStatus}}"
                                                    Foreground="Black" FontWeight="Bold" HorizontalAlignment="Center" FontSize="14"/>
                                     </Border>
-                                    <Button Grid.Column="1" Content="INSPECT" Click="InspectPacket_Click"
-                                            Padding="8,3" Margin="4,0,0,0" VerticalAlignment="Stretch"/>
+                                    <Button Grid.Column="1" Click="InspectPacket_Click"
+                                            Padding="8,3" Margin="4,0,0,0" VerticalAlignment="Stretch">
+                                        <StackPanel Orientation="Horizontal">
+                                            <Image Source="{StaticResource SearchIcon}" Width="14" Height="14" Margin="0,0,4,0"/>
+                                            <TextBlock Text="INSPECT" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Button>
                                 </Grid>
 
                                 <TextBlock Text="═══ LAYER 2: ETHERNET II ═══" Foreground="{StaticResource CyanAccentBrush}" FontWeight="Bold" Margin="0,0,0,2"/>
